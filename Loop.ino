@@ -22,7 +22,7 @@ void loop() {
       if (footFlag == 1)
       {
         startAddr = read_ds(0xEF); delay(10);
-        startAddr = 1-startAddr; delay(10);
+        startAddr = 1 - startAddr; delay(10);
         write_ds (0xEF, startAddr); // 자동 모드, 정지 모드
       }
     }
