@@ -1,61 +1,29 @@
 
 
 void loop() {
-
+    //timer.run();
     boolean drawDots = true;    
   
     matrix.print(FND, DEC); 
     matrix.writeDisplay();
 
-    footState = digitalRead(footSW);
+    start_update();
 
-    if (footState == HIGH)
-    {
-      if (footFlag == 0)
-      {
-        footFlag = 1; delay(10);
-      }
-    }
-    
-    if (footState == LOW)
-    {
-      if (footFlag == 1)
-      {
-        startAddr = read_ds(0xEF); delay(10);
-        startAddr = 1 - startAddr; delay(10);
-        write_ds (0xEF, startAddr); // 자동 모드, 정지 모드
-      }
-    }
-    
-    startAddr = read_ds(0xEF); delay(10);
-    if (startAddr == 1)
-    {
-      mode_update();
-      jig_update();
-      pos_update();
-      shape_update();
-
-      if (mode != 0)
-      {
-        cycleStart();
-      } else {
-        homePos();
-      }
-    }
-
-  char btn = myKeypad.getKey();
-  if(btn != NO_KEY) {
+    char btn = myKeypad.getKey();
+    if(btn != NO_KEY) {
     
     digitalWrite(Buz, HIGH);
     delay(40);
     digitalWrite(Buz, LOW);
     delay(10);
+    /*
     byte hiByte = read_ds(0xE0); // read(주소)
     byte loByte = read_ds(0xE1); // read(주소)
     FND = word(hiByte, loByte);
     FND++;
     delay(10);
-  }
+    */
+    }
   set_count();
   
   switch(btn) {
@@ -88,10 +56,28 @@ void loop() {
     break;
 
     case '5':
-      mode = 2; // 반자동모드
+      mode = 2; // 자동모드
       mode_update();
     break;
 
+    case 'C':
+      option = 1-option;
+       if(option == 0)
+       {
+         matrix1.blinkRate(0);
+         matrix1.writeDigitNum(1, (CT / 1000) % 10, drawDots);
+         matrix1.writeDigitNum(2, (CT / 100) % 10);
+         matrix1.writeDisplay();
+       }
+        if(option == 1)
+       {
+         matrix1.blinkRate(1);
+         matrix1.writeDigitNum(1, (optionTime / 1000) % 10, drawDots);
+         matrix1.writeDigitNum(2, (optionTime / 100) % 10);
+         matrix1.writeDisplay();
+       }
+    break;
+    
     case 'D':
       jig = 1-jig; // 0:자동지그 OFF, 1:자동지그 ON
       jig_update();
@@ -108,6 +94,17 @@ void loop() {
     break;
     
     case '6':
+    if(option == 1)
+    {
+      optionTime += 100;
+      if (optionTime>20000) optionTime=20000;
+      set_optionTime();
+      matrix1.writeDigitNum(1, (optionTime / 1000) % 10, drawDots);
+      matrix1.writeDigitNum(2, (optionTime / 100) % 10);
+      matrix1.writeDisplay();
+      break;
+    } else {
+    
     CT += 100;
     if (CT>20000) CT=20000;
     set_time();
@@ -116,8 +113,19 @@ void loop() {
     matrix1.writeDigitNum(2, (CT / 100) % 10);
     matrix1.writeDisplay();
     break;
-     
+    }
+    
     case '7':
+    if(option == 1)
+    {
+      optionTime -= 100;
+      if (optionTime<100) optionTime=99;
+      set_optionTime();
+      matrix1.writeDigitNum(1, (optionTime / 1000) % 10, drawDots);
+      matrix1.writeDigitNum(2, (optionTime / 100) % 10);
+      matrix1.writeDisplay();
+      break;
+    } else {
     CT -= 100;
     if (CT<100) CT=99;
     set_time();
@@ -125,6 +133,7 @@ void loop() {
     matrix1.writeDigitNum(2, (CT / 100) % 10);
     matrix1.writeDisplay();
     break;
+    }
     
     case 'G':
     FND = 0;

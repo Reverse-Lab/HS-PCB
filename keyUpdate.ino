@@ -1,3 +1,47 @@
+void foot_Update()
+{
+  footState = digitalRead(footSW);
+
+    if (footState == HIGH)
+    {
+      if (footFlag == 0)
+      {
+        footFlag = 1;
+      }
+    }
+    
+    if (footState == LOW)
+    {
+      if (footFlag == 1)
+      {
+        startAddr = read_ds(0xEF);
+        startAddr = 1 - startAddr;
+        write_ds (0xEF, startAddr); // 자동 모드, 정지 모드
+        footFlag =0; 
+      }
+    } 
+}
+
+void emg_Update()
+{
+  emgState = digitalRead(footSW);
+
+    if (emgState == HIGH)
+    {
+      if (emgFlag == 0)
+      {
+        emgFlag =1; 
+      }
+    }
+    
+    if (emgState == LOW)
+    {
+      if (emgFlag == 1)
+      {
+        emgFlag =0; 
+      }
+    } 
+}
 
 void mode_update()
 {
@@ -50,12 +94,12 @@ void pos_update()
 {
   switch (start_pos){
     case 0:
-    digitalWrite (pos_led, LOW);
+    digitalWrite (pos_led, HIGH);
     write_ds(0xE6, byte(start_pos));
     break;
 
     case 1:
-    digitalWrite (pos_led, HIGH);
+    digitalWrite (pos_led, LOW);
     write_ds(0xE6, byte(start_pos));
     break;
 

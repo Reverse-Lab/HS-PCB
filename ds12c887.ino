@@ -70,3 +70,9 @@ void set_time()
   write_ds(0xE2, highByte(CT));
   write_ds(0xE3, lowByte(CT));
 }
+
+void set_optionTime()
+{
+  write_ds(0xEA, highByte(optionTime));
+  write_ds(0xEB, lowByte(optionTime));
+}

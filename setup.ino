@@ -29,6 +29,9 @@ void setup() {
   // write_ds(0xE6, 0);
   // write_ds(0xE7, 0);
   
+  // attachPCINT(digitalPinToPCINT(footSW), foot_Update, CHANGE); 
+  delay(100);
+  
   byte hiByte = read_ds(0xE0); // 카운터 read(주소)
   byte loByte = read_ds(0xE1); // 카운터 read(주소)
   FND = word(hiByte, loByte);
@@ -37,19 +40,27 @@ void setup() {
   byte ct_loByte = read_ds(0xE3); // 카운터 read(주소)
   CT = word(ct_hiByte, ct_loByte);
 
+
+  byte option_hiByte = read_ds(0xEA); // 카운터 read(주소)
+  byte option_loByte = read_ds(0xEB); // 카운터 read(주소)
+  optionTime = word(option_hiByte, option_loByte);
+
   mode = read_ds(0xE4);
   jig = read_ds(0xE5);
   start_pos = read_ds(0xE6);
   shape = read_ds(0xE7);
+  //EMG = read_ds(0xEC);  
 
   write_ds(0xEF, 0); // 작업개시 주소 초기화
+  //write_ds(0xEC, 0); // 비상정지 주소
 
+  //MsTimer2::set(10, scanISR);
+  //MsTimer2::start();
+  
   mode_update();
   jig_update();
   pos_update();
   shape_update();
-
-  delay(500);
 
   digitalWrite(Buz, HIGH);
   delay(40);
