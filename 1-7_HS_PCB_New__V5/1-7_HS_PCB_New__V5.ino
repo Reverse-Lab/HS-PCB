@@ -61,12 +61,10 @@ int jig;                         // 0 자동지그 OFF, 1:자동지그 ON
 int start_pos;                   // 0:전인쇄, 1:후인쇄 모드 저장 변수
 int shape;                       // 0:곡면, 1:평면
 int startAddr;                   // 0:정지, 1:작업 개시
-//int emgAddr;
 int option = 0;       // Jig 옵션 설정 모드 확인 변수
 unsigned int FND, CT, optionTime;
 unsigned long time_count = 30000;
-//unsigned int footState = 0, footFlag = 0;
-unsigned int emgState = 0, emgFlag = 0;
+unsigned long finTime = millis();
 
 void btn_Update();
 
@@ -129,7 +127,7 @@ void setup() {
   // write_ds(0xE6, 0);
   // write_ds(0xE7, 0);
 
-  delay(200);
+  delay(300);
   
   byte hiByte = read_ds(0xE0); // 카운터 read(주소)
   byte loByte = read_ds(0xE1); // 카운터 read(주소)
@@ -138,7 +136,6 @@ void setup() {
   byte ct_hiByte = read_ds(0xE2); // 카운터 read(주소)
   byte ct_loByte = read_ds(0xE3); // 카운터 read(주소)
   CT = word(ct_hiByte, ct_loByte);
-
 
   byte option_hiByte = read_ds(0xEA); // 카운터 read(주소)
   byte option_loByte = read_ds(0xEB); // 카운터 read(주소)
@@ -228,7 +225,7 @@ boolean footFlag = false;
 
 void footSign ()
 {
-  curFoot = digitalRead(37);
+  curFoot = digitalRead(37); // bitRead(PORTA, 7); 
   if ( lastFoot == LOW && curFoot == HIGH ) {
     footFlag =! footFlag;
   }
@@ -236,12 +233,15 @@ void footSign ()
 }
 
 void loop() {
+
   int Mode;
   boolean drawDots = true; 
+
+  
   matrix.print(FND, DEC); 
   matrix.writeDisplay();
   char btn = myKeypad.getKey();
-  if (btn != NO_KEY) FND++; //beep();      
+  if (btn != NO_KEY) beep();      
   
   unsigned int beepDelayTime = 100;
   if ((beepFlag) && (millis()-beepOnTime) >= beepDelayTime) {
@@ -251,20 +251,50 @@ void loop() {
 
   if (footFlag) { // 반자동 모드 Start
     if (PINF&(1<<sw_MANU)) Mode = 0;
-    
     if ( (PINF&(1<<sw_SEMI)) && (!(PINF&(1<<sw_POS))) ) Mode = 1;
     if ( (PINF&(1<<sw_AUTO)) && (!(PINF&(1<<sw_POS))) ) Mode = 2;
-
+    if ( (PINF&(1<<sw_SEMI)) && (PINF&(1<<sw_POS)) ) Mode = 10;
+    if ( (PINF&(1<<sw_AUTO)) && (PINF&(1<<sw_POS)) ) Mode = 20;
 
     switch(Mode) {
       case 1:
+        if (PINF&(1<<sw_JIG)) {time_count = 20000; }// 진공 사용 여부    
+        while (!(PINA&(1<<sensor_RIGH)))  { left_L(); righ_H(); footSign();    }         
+        while (!(PINA&(1<<sensor_UPDN)))  { updn_L();  footSign(); if (!(footFlag)) { updn_H(); goto FAULT;} }
+        footFlag =! footFlag;
+        while (!(PINA&(1<<sensor_LEFT)))  { righ_L(); left_H(); footSign();    } 
+        while (PINA&(1<<sensor_UPDN))     { updn_H();           footSign(); }        
+        FND++;  set_count();
+      break;
+
+      case 2:
+        if ((millis() - finTime) > CT - 20000) {
+        if (PINF&(1<<sw_JIG)) {time_count = 20000; }// 진공 사용 여부    
+        while (!(PINA&(1<<sensor_RIGH)))  { left_L(); righ_H();    }         
+        while (!(PINA&(1<<sensor_UPDN)))  { updn_L();  footSign(); if (!(footFlag)) { updn_H(); goto FAULT;} }
+        while (!(PINA&(1<<sensor_LEFT)))  { righ_L(); left_H();    } 
+        while (PINA&(1<<sensor_UPDN))     { updn_H();   }   
+        finTime = millis(); FND++;  set_count();}
+      break;
+      
+      case 10:
         if (PINF&(1<<sw_JIG)) {time_count = 20000; }// 진공 사용 여부      
         while (!(PINA&(1<<sensor_UPDN)))  { updn_L();  footSign(); if (!(footFlag)) { updn_H(); goto FAULT;} }
-        while (!(PINA&(1<<sensor_LEFT)))  { righ_L(); left_H();}
-        while (PINA&(1<<sensor_UPDN))     { updn_H();    ;}
-        while (!(PINA&(1<<sensor_RIGH)))  { left_L(); righ_H();}
         footFlag =! footFlag;
-        //left_L(); righ_H();  delay(1000); //while (PIND&(1<<sensor_RIGH)) {;}
+        while (!(PINA&(1<<sensor_LEFT)))  { righ_L(); left_H(); footSign();    }
+        while (PINA&(1<<sensor_UPDN))     { updn_H();           footSign(); }
+        while (!(PINA&(1<<sensor_RIGH)))  { left_L(); righ_H(); footSign();    }
+        FND++;  set_count();
+      break;
+      
+      case 20:
+        if ((millis() - finTime) > CT - 20000) {
+        if (PINF&(1<<sw_JIG)) {time_count = 20000; }// 진공 사용 여부      
+        while (!(PINA&(1<<sensor_UPDN)))  { updn_L();  footSign(); if (!(footFlag)) { updn_H(); goto FAULT;} }        
+        while (!(PINA&(1<<sensor_LEFT)))  { righ_L(); left_H(); footSign();      }
+        while (PINA&(1<<sensor_UPDN))     { updn_H();           footSign();    }
+        while (!(PINA&(1<<sensor_RIGH)))  { left_L(); righ_H(); footSign();     }
+        finTime = millis(); FND++;  set_count();}
       break;
 
       default :
@@ -272,8 +302,6 @@ void loop() {
     }
     
   }
-
-  set_count();
 
   switch(btn) {
     case '1': if (PINF&(1<<sw_MANU)) {righ_L(); left_H();} break;
@@ -398,9 +426,8 @@ byte read_ds(byte add)         //칩 읽기 명령
 
 void set_count()  // DS12C887에 카운터 쓰기
 {
-  if (!FND) {
   write_ds(0xE0, highByte(FND));
-  write_ds(0xE1, lowByte(FND)); }
+  write_ds(0xE1, lowByte(FND)); 
 }
 
 void set_time()
@@ -413,25 +440,4 @@ void set_optionTime()
 {
   write_ds(0xEA, highByte(optionTime));
   write_ds(0xEB, lowByte(optionTime));
-}
-/*
-void foot_Update()
-{
-  footState = (PINA&(1<<sw_FOOT));
-  if (footState == HIGH) {if (footFlag == 0) footFlag = 1;}    
-  if (footState == LOW) {
-    if (footFlag == 1) {
-      startAddr = read_ds(0xEF);
-      startAddr = 1 - startAddr;
-      write_ds (0xEF, startAddr); // 자동 모드, 정지 모드
-      footFlag = 0; 
-    }
-  } 
-}
-*/
-void emg_Update()
-{
-  emgState = (PINA&(1<<sw_FOOT));
-  if (emgState == HIGH) {if (emgFlag == 0) emgFlag = 1; }    
-  if (emgState == LOW) {if (emgFlag == 1) emgFlag = 0; } 
 }
