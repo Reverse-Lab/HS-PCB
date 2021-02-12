@@ -104,9 +104,6 @@ void setup() {
   pinMode(50, OUTPUT);  //pos_led
   pinMode(48, OUTPUT);  //shape_led
 
-  MsTimer2::set(100, timer_ISR); // 100ms period
-  MsTimer2::start();
-
   pinMode(dscs, OUTPUT);
   pinMode(dsas, OUTPUT);
   pinMode(dsrw, OUTPUT);
@@ -116,27 +113,26 @@ void setup() {
   //DS12C887   칩 초기화 최초 1회 실행 할 것
   // write_ds(regA,0x20);      // 수정 발진기를 켜고 클럭을 계속 작동 시키려면 A 레지스터를 제어하십시오.
   // write_ds(regB,0x26);        //24 시간 모드, 데이터 바이너리 모드를 설정하고 알람 인터럽트를 활성화하십시오
-  // write_ds(0xE4, 0);
-  // write_ds(0xE5, 0);
-  // write_ds(0xE6, 0);
-  // write_ds(0xE7, 0);
+  // write_ds(0xE2, 0); delay(10);
+  // write_ds(0xE3, 0); delay(10);
+  // write_ds(0xE4, 0); delay(10);
+  // write_ds(0xE5, 0); delay(10);
+  // write_ds(0xE6, 0); delay(10);
+  // write_ds(0xE7, 0); delay(10);
 
-  delay(300);
+  delay(100);
   
   byte hiByte = read_ds(0xE0); // 카운터 read(주소)
   byte loByte = read_ds(0xE1); // 카운터 read(주소)
   FND = word(hiByte, loByte);
-  delay(100);
-
+  
   byte ct_hiByte = read_ds(0xE2); // 카운터 read(주소)
   byte ct_loByte = read_ds(0xE3); // 카운터 read(주소)
   CT = word(ct_hiByte, ct_loByte);
-  delay(100);
 
   byte option_hiByte = read_ds(0xEA); // 카운터 read(주소)
   byte option_loByte = read_ds(0xEB); // 카운터 read(주소)
   optionTime = word(option_hiByte, option_loByte);
-  delay(100);
 
   mode = read_ds(0xE4);
   switch (mode) { 
@@ -188,6 +184,9 @@ void setup() {
   matrix1.writeDigitNum(1, (CT / 1000) % 10, drawDots);
   matrix1.writeDigitNum(2, (CT / 100) % 10);
   matrix1.writeDisplay(); 
+  
+  MsTimer2::set(100, timer_ISR); // 100ms period
+  MsTimer2::start();
 }
 
 void sw_manu(){if (!(PINF&(1<<sw_MANU))) bitSet (PORTF, 0); bitClear (PORTF, 1); bitClear (PORTF, 2); write_ds(0xE4, 0);}
@@ -213,16 +212,17 @@ boolean beepFlag;
 void timer_ISR() {    
   
   if (time_count <=  optionTime) {bitSet(PORTB, 7); time_count += 100;} else {bitClear(PORTB, 7); time_count = 30000; }
-     
-  curFoot = bitRead(PINA, PINA7); //digitalRead(37); // bitRead(PORTA, 7);  
+  
+  curFoot = bitRead(PINA, PINA7); // 풋스위치 감지
   if ( lastFoot == LOW && curFoot == HIGH ) { footFlag =! footFlag; }
   lastFoot = curFoot;
-
-  if ((beepFlag) && (beepOnTime <= 1)) {beepOnTime++;} else {bitClear(PORTD, 7); beepOnTime = 0; beepFlag = false; }  
+  
+  bitClear(PORTD, 7); // beep 해제
+  
 }
 
 void beep() {
-  bitSet(PORTD, 7); beepFlag = true;
+  bitSet(PORTD, 7);
 }
 
 void loop() {
@@ -235,7 +235,7 @@ void loop() {
   if (btn != NO_KEY) beep();      
 
   if (footFlag) { // 반자동 모드 Start
-    if (PINF&(1<<sw_MANU)) Mode = 0;
+    if (PINF&(1<<sw_MANU)) {footFlag = false; Mode = 0; }
     if ( (PINF&(1<<sw_SEMI)) && (!(PINF&(1<<sw_POS))) ) Mode = 1;
     if ( (PINF&(1<<sw_AUTO)) && (!(PINF&(1<<sw_POS))) ) Mode = 2;
     if ( (PINF&(1<<sw_SEMI)) && (PINF&(1<<sw_POS)) ) Mode = 10;
@@ -243,7 +243,8 @@ void loop() {
 
     switch(Mode) {
       case 1:
-        if (PINF&(1<<sw_JIG)) {time_count = 20000; }// 진공 사용 여부    
+        if (PINA&(1<<sensor_RIGH)) {righ_L(); left_H(); footFlag = false; goto FAULT;} 
+        if (PINF&(1<<sw_JIG)) {time_count = 20000; }// 진공 사용 여부   
         while (!(PINA&(1<<sensor_RIGH)))  { left_L(); righ_H();   }         
         while (!(PINA&(1<<sensor_UPDN)))  { updn_L();  if (!(footFlag)) { updn_H(); goto FAULT;} }
         footFlag =! footFlag;
@@ -253,6 +254,7 @@ void loop() {
       break;
 
       case 2:
+        if (PINA&(1<<sensor_RIGH)) {righ_L(); left_H(); footFlag = false; goto FAULT;} 
         if ((millis() - finTime) > CT - 20000) {
         if (PINF&(1<<sw_JIG)) {time_count = 20000; }// 진공 사용 여부    
         while (!(PINA&(1<<sensor_RIGH)))  { left_L(); righ_H();    }         
@@ -263,6 +265,7 @@ void loop() {
       break;
       
       case 10:
+        if (PINA&(1<<sensor_LEFT)) {left_L(); righ_H(); footFlag = false; goto FAULT;} 
         if (PINF&(1<<sw_JIG)) {time_count = 20000; }// 진공 사용 여부      
         while (!(PINA&(1<<sensor_UPDN)))  { updn_L();    if (!(footFlag)) { updn_H(); goto FAULT;} }
         footFlag =! footFlag;
@@ -273,6 +276,7 @@ void loop() {
       break;
       
       case 20:
+        if (PINA&(1<<sensor_LEFT)) {left_L(); righ_H(); footFlag = false; goto FAULT;} 
         if ((millis() - finTime) > CT - 20000) {
         if (PINF&(1<<sw_JIG)) {time_count = 20000; }// 진공 사용 여부      
         while (!(PINA&(1<<sensor_UPDN)))  { updn_L();    if (!(footFlag)) { updn_H(); goto FAULT;} }        
@@ -370,42 +374,42 @@ void bus2in(){
 void write_ds(byte add,byte date)    //칩 쓰기 명령
 {
   bus2out();  //set address pins to output
-  digitalWrite(dscs,0); // PA1
-  digitalWrite(dsas,1); // PF7
-  digitalWrite(dsds,1); // PA0
-  digitalWrite(dsrw,1); // PA2
+  bitClear (PORTA, 1);  //digitalWrite(dscs,0); // PA1  
+  bitSet (PORTF, 7);    //digitalWrite(dsas,1); // PF7  
+  bitSet (PORTA, 0);    //digitalWrite(dsds,1); // PA0  
+  bitSet (PORTA, 2);    //digitalWrite(dsrw,1); // PA2  
   
   //set address on bus(주소 쓰기)
   for(i=0;i<8;i++) {digitalWrite(ad[i],bitRead(add,i));}
-  digitalWrite(dsas,0); 
-  digitalWrite(dsrw,0);
+  bitClear (PORTF, 7);   //digitalWrite(dsas,0);  // PF7  
+  bitClear (PORTA, 2);   //digitalWrite(dsrw,0); // PA2  
   
   //set byte to write(데이터 쓰기)
   for(i=0;i<8;i++) {digitalWrite(ad[i],bitRead(date,i));}
-  digitalWrite(dsrw,1);
-  digitalWrite(dsas,1);
-  digitalWrite(dscs,1);
+  bitSet (PORTA, 2);    //digitalWrite(dsrw,1); // PA2  
+  bitSet (PORTF, 7);    //digitalWrite(dsas,1); // PF7  
+  bitSet (PORTA, 1);    //digitalWrite(dscs,1); // PA1  
 }
 
 byte read_ds(byte add)         //칩 읽기 명령
 {
   byte readb=0; bus2out();  //set address pins to output
-  digitalWrite(dscs,0);
-  digitalWrite(dsas,1);
-  digitalWrite(dsds,1);
-  digitalWrite(dsrw,1);
+  bitClear (PORTA, 1);  //digitalWrite(dscs,0); // PA1  
+  bitSet (PORTF, 7);    //digitalWrite(dsas,1); // PF7  
+  bitSet (PORTA, 0);    //digitalWrite(dsds,1); // PA0  
+  bitSet (PORTA, 2);    //digitalWrite(dsrw,1); // PA2  
   
   //set address on bus(주소 쓰기)
   for(i=0;i<8;i++) {digitalWrite(ad[i],bitRead(add,i));}
-  digitalWrite(dsas,0);
-  digitalWrite(dsds,0);
+  bitClear (PORTF, 7);    //digitalWrite(dsas,0); // PF7  
+  bitClear (PORTA, 0);    //digitalWrite(dsds,0); // PA0  
   
   bus2in(); // Input Mode 전환
   for(i=0;i<8;i++){digitalWrite(ad[i],1);}
   readb = digitalRead(ad[0])|(digitalRead(ad[1])<<1)|(digitalRead(ad[2])<<2)|(digitalRead(ad[3])<<3)|(digitalRead(ad[4])<<4)|(digitalRead(ad[5])<<5)|(digitalRead(ad[6])<<6)|(digitalRead(ad[7])<<7);
-  digitalWrite(dsds,1);
-  digitalWrite(dsas,1);
-  digitalWrite(dscs,1);
+  bitSet (PORTA, 0);    //digitalWrite(dsds,1); // PA0  
+  bitSet (PORTF, 7);    //digitalWrite(dsas,1); // PF7  
+  bitSet (PORTA, 1);    //digitalWrite(dscs,1); // PA1  
   return readb;
 }
 
