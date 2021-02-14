@@ -241,10 +241,10 @@ void loop() {
     if ( (PINF&(1<<sw_SEMI)) && (PINF&(1<<sw_POS))    && (!(PINF&(1<<sw_RUND))) ) Mode = 3;   // 평면 후인쇄 (반자동)
     if ( (PINF&(1<<sw_AUTO)) && (PINF&(1<<sw_POS))    && (!(PINF&(1<<sw_RUND))) ) Mode = 4;   // 평면 후인쇄 (자동)
     
-    if ( (PINF&(1<<sw_SEMI)) && (!(PINF&(1<<sw_POS))) && (PINF&(1<<sw_RUND)) ) Mode = 10;     // 곡면 전인쇄 (반자동)
-    if ( (PINF&(1<<sw_AUTO)) && (!(PINF&(1<<sw_POS))) && (PINF&(1<<sw_RUND)) ) Mode = 20;     // 곡면 전인쇄 (자동)
-    if ( (PINF&(1<<sw_SEMI)) && (PINF&(1<<sw_POS))    && (PINF&(1<<sw_RUND)) ) Mode = 30;     // 곡면 후인쇄 (반자동)
-    if ( (PINF&(1<<sw_AUTO)) && (PINF&(1<<sw_POS))    && (PINF&(1<<sw_RUND)) ) Mode = 40;     // 곡면 후인쇄 (자동)
+    if ( (PINF&(1<<sw_SEMI)) && (!(PINF&(1<<sw_POS))) && (PINF&(1<<sw_RUND)) ) Mode = 30;     // 곡면 전인쇄 (반자동)
+    if ( (PINF&(1<<sw_AUTO)) && (!(PINF&(1<<sw_POS))) && (PINF&(1<<sw_RUND)) ) Mode = 40;     // 곡면 전인쇄 (자동)
+    if ( (PINF&(1<<sw_SEMI)) && (PINF&(1<<sw_POS))    && (PINF&(1<<sw_RUND)) ) Mode = 10;     // 곡면 후인쇄 (반자동)
+    if ( (PINF&(1<<sw_AUTO)) && (PINF&(1<<sw_POS))    && (PINF&(1<<sw_RUND)) ) Mode = 20;     // 곡면 후인쇄 (자동)
 
     switch(Mode) {
       case 1:
